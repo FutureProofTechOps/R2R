@@ -31,12 +31,15 @@ class IngestionRouter(BaseRouter):
                 else None
             ),
         ):
-            chunking_config_override = None
+            kwargs = {}
             if request.chunking_config_override:
                 config = ChunkingConfig(**request.chunking_config_override)
-                chunking_config_override = (
+                config.validate()
+                kwargs["chunking_provider"] = (
                     R2RProviderFactory.create_chunking_provider(config)
                 )
+            else:
+                print("No chunking config override provided. Using default.")
 
             return await self.engine.aingest_files(
                 files=files,
@@ -44,7 +47,7 @@ class IngestionRouter(BaseRouter):
                 document_ids=request.document_ids,
                 versions=request.versions,
                 user=auth_user,
-                chunking_config_override=chunking_config_override,
+                **kwargs
             )
 
         @self.router.post("/update_files")

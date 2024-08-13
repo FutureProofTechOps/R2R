@@ -3,6 +3,7 @@ from typing import Any, AsyncGenerator, Optional, Union
 
 from r2r.base import (
     AsyncState,
+    ChunkingConfig,
     ChunkingProvider,
     Extraction,
     Fragment,
@@ -13,6 +14,7 @@ from r2r.base import (
     generate_id_from_label,
 )
 from r2r.base.pipes.base_pipe import AsyncPipe
+from r2r.providers import R2RChunkingProvider
 
 
 class ChunkingPipe(AsyncPipe):
@@ -23,7 +25,7 @@ class ChunkingPipe(AsyncPipe):
 
     def __init__(
         self,
-        chunking_provider: ChunkingProvider,
+        chunking_provider: Optional[ChunkingProvider] = None,
         pipe_logger: Optional[KVLoggingSingleton] = None,
         type: PipeType = PipeType.INGESTOR,
         config: Optional[AsyncPipe.PipeConfig] = None,
@@ -38,17 +40,25 @@ class ChunkingPipe(AsyncPipe):
             *args,
             **kwargs,
         )
-        self.chunking_provider = chunking_provider
+        self.default_chunking_provider = (
+            chunking_provider or R2RChunkingProvider(ChunkingConfig())
+        )
 
     async def _run_logic(
         self,
         input: Input,
         state: AsyncState,
         run_id: Any,
-        chunking_config_override: Optional[ChunkingProvider] = None,
         *args: Any,
         **kwargs: Any,
     ) -> AsyncGenerator[Union[R2RDocumentProcessingError, Fragment], None]:
+        chunking_provider = kwargs.get(
+            "chunking_provider", self.default_chunking_provider
+        )
+
+        print(f"Using chunking provider: {chunking_provider}")
+        print(f"Chunking with config: {chunking_provider.config}")
+
         async for item in input.message:
             if isinstance(item, R2RDocumentProcessingError):
                 yield item
@@ -56,7 +66,7 @@ class ChunkingPipe(AsyncPipe):
 
             try:
                 iteration = 0
-                async for chunk in self.chunking_provider.chunk(item.data):
+                async for chunk in chunking_provider.chunk(item.data):
                     yield Fragment(
                         id=generate_id_from_label(f"{item.id}-{iteration}"),
                         type=FragmentType.TEXT,

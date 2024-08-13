@@ -9,6 +9,7 @@ from typing import Any, Optional
 from fastapi import Form, UploadFile
 
 from r2r.base import (
+    ChunkingConfig,
     Document,
     DocumentInfo,
     DocumentType,
@@ -83,9 +84,18 @@ class IngestionService(Service):
         *args: Any,
         **kwargs: Any,
     ):
+        print("IngestDocuments")
         if len(documents) == 0:
             raise R2RException(
                 status_code=400, message="No documents provided for ingestion."
+            )
+
+        chunking_provider = kwargs.get("chunking_provider")
+        if chunking_provider is None:
+            print("No chunking provider specified. Using default.")
+        else:
+            print(
+                f"Using custom chunking provider: {type(chunking_provider).__name__}"
             )
 
         document_infos = []
@@ -150,6 +160,8 @@ class IngestionService(Service):
                 )
                 continue
 
+            print("gets here in ingest documents")
+
             now = datetime.now()
             document_info_metadata = document.metadata.copy()
             title = document_info_metadata.pop("title", str(document.id))
@@ -205,6 +217,7 @@ class IngestionService(Service):
             versions=[info.version for info in document_infos],
             run_manager=self.run_manager,
             user=user,
+            chunking_provider=chunking_provider,
             *args,
             **kwargs,
         )
@@ -227,6 +240,7 @@ class IngestionService(Service):
         *args: Any,
         **kwargs: Any,
     ):
+        print("IngestFiles")
         if not files:
             raise R2RException(
                 status_code=400, message="No files provided for ingestion."
@@ -257,7 +271,11 @@ class IngestionService(Service):
                 )
                 documents.append(document)
             return await self.ingest_documents(
-                documents, versions, *args, **kwargs, user=user
+                documents,
+                versions,
+                user=user,
+                *args,
+                **kwargs,
             )
 
         finally:
@@ -274,6 +292,7 @@ class IngestionService(Service):
         *args: Any,
         **kwargs: Any,
     ):
+        print("UpdateFiles")
         if not files:
             raise R2RException(
                 status_code=400, message="No files provided for update."
