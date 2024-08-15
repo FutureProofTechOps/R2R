@@ -7,18 +7,16 @@ from r2r.base import (
     AsyncState,
     ChunkingProvider,
     CompletionProvider,
-    Extraction,
-    Fragment,
-    KGExtraction,
-    KGProvider,
-    KVLoggingSingleton,
+    DocumentExtraction,
+    KGDBProvider,
     PipeType,
     PromptProvider,
     R2RDocumentProcessingError,
-    extract_entities,
-    extract_triples,
+    RunLoggingSingleton,
 )
+from r2r.base.abstractions.kg import KGExtraction, extract_triples
 from r2r.base.pipes.base_pipe import AsyncPipe
+from r2r.base.providers.kg import extract_entities
 
 logger = logging.getLogger(__name__)
 
@@ -29,24 +27,24 @@ class ClientError(Exception):
     pass
 
 
-class KGExtractionPipe(AsyncPipe):
+class KGTriplesExtractionPipe(AsyncPipe):
     """
     Extracts knowledge graph information from document extractions.
     """
 
     class Input(AsyncPipe.Input):
         message: AsyncGenerator[
-            Union[Extraction, R2RDocumentProcessingError], None
+            Union[DocumentExtraction, R2RDocumentProcessingError], None
         ]
 
     def __init__(
         self,
-        kg_provider: KGProvider,
+        kg_provider: KGDBProvider,
         llm_provider: CompletionProvider,
         prompt_provider: PromptProvider,
         chunking_provider: ChunkingProvider,
         kg_batch_size: int = 1,
-        pipe_logger: Optional[KVLoggingSingleton] = None,
+        pipe_logger: Optional[RunLoggingSingleton] = None,
         type: PipeType = PipeType.INGESTOR,
         config: Optional[AsyncPipe.PipeConfig] = None,
         *args,

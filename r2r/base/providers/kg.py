@@ -5,9 +5,11 @@ import logging
 from abc import ABC, abstractmethod
 from typing import TYPE_CHECKING, Any, Optional, Tuple
 
-from ..abstractions.llama_abstractions import EntityNode, LabelledNode
-from ..abstractions.llama_abstractions import Relation as LlamaRelation
-from ..abstractions.llama_abstractions import VectorStoreQuery
+from r2r.base.abstractions.kg import Entity
+from r2r.base.abstractions.llama_abstractions import EntityNode, LabelledNode
+from r2r.base.abstractions.llama_abstractions import Relation as LlamaRelation
+from r2r.base.abstractions.llama_abstractions import VectorStoreQuery
+
 from .base import ProviderConfig
 from .prompt import PromptProvider
 
@@ -38,13 +40,13 @@ class KGConfig(ProviderConfig):
         return [None, "neo4j"]
 
 
-class KGProvider(ABC):
+class KGDBProvider(ABC):
     """An abstract class to provide a common interface for Knowledge Graphs."""
 
     def __init__(self, config: KGConfig) -> None:
         if not isinstance(config, KGConfig):
             raise ValueError(
-                "KGProvider must be initialized with a `KGConfig`."
+                "KGDBProvider must be initialized with a `KGConfig`."
             )
         logger.info(f"Initializing KG provider with config: {config}")
         self.config = config
@@ -193,3 +195,34 @@ def update_kg_prompt(
         template=escaped_template,
         input_types={"input": "str"},
     )
+
+
+def extract_entities(llm_payload: list[str]) -> dict[str, Entity]:
+    entities = {}
+    for entry in llm_payload:
+        try:
+            if "], " in entry:  # Check if the entry is an entity
+                entry_val = entry.split("], ")[0] + "]"
+                entry = entry.split("], ")[1]
+                colon_count = entry.count(":")
+
+                if colon_count == 1:
+                    category, value = entry.split(":")
+                    subcategory = None
+                elif colon_count >= 2:
+                    parts = entry.split(":", 2)
+                    category, subcategory, value = (
+                        parts[0],
+                        parts[1],
+                        parts[2],
+                    )
+                else:
+                    raise ValueError("Unexpected entry format")
+
+                entities[entry_val] = Entity(
+                    category=category, subcategory=subcategory, value=value
+                )
+        except Exception as e:
+            logger.error(f"Error processing entity {entry}: {e}")
+            continue
+    return entities

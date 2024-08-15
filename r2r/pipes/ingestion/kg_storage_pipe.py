@@ -6,11 +6,11 @@ from typing import Any, AsyncGenerator, Optional
 from r2r.base import (
     AsyncState,
     EmbeddingProvider,
-    KGExtraction,
-    KGProvider,
-    KVLoggingSingleton,
+    KGDBProvider,
     PipeType,
+    RunLoggingSingleton,
 )
+from r2r.base.abstractions.kg import KGExtraction
 from r2r.base.abstractions.llama_abstractions import EntityNode, Relation
 from r2r.base.pipes.base_pipe import AsyncPipe
 
@@ -23,10 +23,10 @@ class KGStoragePipe(AsyncPipe):
 
     def __init__(
         self,
-        kg_provider: KGProvider,
+        kg_provider: KGDBProvider,
         embedding_provider: Optional[EmbeddingProvider] = None,
         storage_batch_size: int = 1,
-        pipe_logger: Optional[KVLoggingSingleton] = None,
+        pipe_logger: Optional[RunLoggingSingleton] = None,
         type: PipeType = PipeType.INGESTOR,
         config: Optional[AsyncPipe.PipeConfig] = None,
         *args,

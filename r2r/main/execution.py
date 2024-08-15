@@ -12,11 +12,12 @@ from fastapi import UploadFile
 
 from r2r.base import (
     AnalysisTypes,
-    FilterCriteria,
+    GenerationConfig,
     KGSearchSettings,
+    LogFilterCriteria,
+    VectorDBFilterValue,
     VectorSearchSettings,
 )
-from r2r.base.abstractions.llm import GenerationConfig
 
 from .api.client import R2RClient
 from .assembly.builder import R2RBuilder
@@ -169,7 +170,9 @@ class R2RExecutionWrapper:
                         document_ids=document_ids,
                         metadatas=metadatas,
                         versions=versions,
-                    )["results"]
+                    )
+                    print("results = ", results)
+                    results["results"]
                 else:
                     results = self.app.ingest_files(
                         files=files,
@@ -222,7 +225,7 @@ class R2RExecutionWrapper:
         self,
         query: str,
         use_vector_search: bool = True,
-        search_filters: Optional[dict] = None,
+        filters: Optional[dict[str, VectorDBFilterValue]] = None,
         search_limit: int = 10,
         do_hybrid_search: bool = False,
         use_kg_search: bool = False,
@@ -233,7 +236,7 @@ class R2RExecutionWrapper:
                 query,
                 VectorSearchSettings(
                     use_vector_search=use_vector_search,
-                    search_filters=search_filters or {},
+                    filters=filters or {},
                     search_limit=search_limit,
                     do_hybrid_search=do_hybrid_search,
                 ),
@@ -249,7 +252,7 @@ class R2RExecutionWrapper:
                 query,
                 VectorSearchSettings(
                     use_vector_search=use_vector_search,
-                    search_filters=search_filters or {},
+                    filters=filters or {},
                     search_limit=search_limit,
                     do_hybrid_search=do_hybrid_search,
                 ),
@@ -265,7 +268,7 @@ class R2RExecutionWrapper:
         self,
         query: str,
         use_vector_search: bool = True,
-        search_filters: Optional[dict] = None,
+        filters: Optional[dict[str, VectorDBFilterValue]] = None,
         search_limit: int = 10,
         do_hybrid_search: bool = False,
         use_kg_search: bool = False,
@@ -278,7 +281,7 @@ class R2RExecutionWrapper:
                 query,
                 vector_search_settings=VectorSearchSettings(
                     use_vector_search=use_vector_search,
-                    search_filters=search_filters or {},
+                    filters=filters or {},
                     search_limit=search_limit,
                     do_hybrid_search=do_hybrid_search,
                 ),
@@ -303,7 +306,7 @@ class R2RExecutionWrapper:
                 query,
                 vector_search_settings=VectorSearchSettings(
                     use_vector_search=use_vector_search,
-                    search_filters=search_filters or {},
+                    filters=filters or {},
                     search_limit=search_limit,
                     do_hybrid_search=do_hybrid_search,
                 ),
@@ -344,34 +347,30 @@ class R2RExecutionWrapper:
     def documents_overview(
         self,
         document_ids: Optional[list[str]] = None,
-        user_ids: Optional[list[str]] = None,
     ):
         if self.client_mode:
-            return self.client.documents_overview(document_ids, user_ids)[
-                "results"
-            ]
+            return self.client.documents_overview(document_ids)["results"]
         else:
-            return self.app.documents_overview(document_ids, user_ids)
+            return self.app.documents_overview(document_ids)
 
     def delete(
         self,
-        keys: list[str],
-        values: list[str],
+        filters: Optional[dict[str, VectorDBFilterValue]] = None,
     ):
         if self.client_mode:
-            return self.client.delete(keys, values)["results"]
+            return self.client.delete(filters)["results"]
         else:
-            return self.app.delete(keys, values)
+            return self.app.delete(filters)
 
     def logs(
         self,
-        log_type_filter: Optional[str] = None,
+        run_type_filter: Optional[str] = None,
         max_runs: int = 100,
     ):
         if self.client_mode:
-            return self.client.logs(log_type_filter, max_runs)["results"]
+            return self.client.logs(run_type_filter, max_runs)["results"]
         else:
-            return self.app.logs(log_type_filter, max_runs)
+            return self.app.logs(run_type_filter, max_runs)
 
     def document_chunks(self, document_id: str):
         doc_uuid = uuid.UUID(document_id)
@@ -403,7 +402,7 @@ class R2RExecutionWrapper:
                 analysis_types=analysis_types,
             )["results"]
 
-        filter_criteria = FilterCriteria(filters=filters)
+        filter_criteria = LogFilterCriteria(filters=filters)
         analysis_types_obj = AnalysisTypes(analysis_types=analysis_types)
         return self.app.analytics(
             filter_criteria=filter_criteria, analysis_types=analysis_types_obj
